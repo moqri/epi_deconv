@@ -1,7 +1,19 @@
-for f in beta/blood/*.beta; do  fn="${f%%.*}";  echo ${fn:5:-10}.bed;  /oak/stanford/scg/lab_mpsnyder/moqri/soft/wgbs_tools/src/python/wgbs_tools.py beta2bed --genome hg38 $f > bed/${fn:11:-10}.bed; done
+wget -nc -i ../../ftps
+for f in beta/*Blood*.hg38.beta; do  fn="${f%%.*}";  echo ${fn:5:-10}.bed;  /oak/stanford/scg/lab_mpsnyder/moqri/soft/wgbs_tools/src/python/wgbs_tools.py beta2bed --genome hg38 $f > bed/${fn:5:-10}.bed; done
 
-for f in bed/*.bed; do  fn="${f%.*}";  echo ${fn:4};  bedtools subtract -a $f -b mask > mask/${fn:4}; done
+for f in beta/*-WBC-WGBS-Rep1.beta; do  fn="${f%%.*}";  echo ${fn:5:-10}.bed;  /oak/stanford/scg/lab_mpsnyder/moqri/soft/wgbs_tools/src/python/wgbs_tools.py beta2bed --genome hg19 $f > bed/${fn:5:-10}.bed; done
+
+for f in bed/*-WBC.bed
+do 
+ /labs/mpsnyder/moqri/soft/ucsc/liftOver $f /labs/mpsnyder/moqri/soft/ucsc/hg19ToHg38.over.chain.gz $f.hg38 tmp
+done
+for f in *.bed.hg38; do mv $f "${f%.*}"; done
+
+for f in bed/*.bed; do  fn="${f%.*}";  echo ${fn:4};  bedtools subtract -a $f -b mask.hg38 > mask/${fn:4}; done
+bedtools subtract -a neo/meth_count.csv.bed -b mask.hg38 > mask/neo
+
 for f in mask/*; do  echo $f;  awk '{print $1,$2,"+","CpG",$4/$5,$5}' $f > meth/${f:5}; done
+awk '{print $1,$2-1,"+","CpG",$5,substr($4,5)}' mask/neo > meth/neo
 
 dnmtools merge meth/*_Blood-T-CD3 -o merge/cd3
 dnmtools merge meth/*_Blood-T-CD4 -o merge/cd4
@@ -10,32 +22,24 @@ dnmtools merge meth/*_Blood-NK -o merge/nk
 dnmtools merge meth/*_Blood-Monocytes -o merge/mono
 dnmtools merge meth/*_Blood-Granulocytes -o merge/gran
 dnmtools merge meth/*_Blood-B -o merge/b
-dnmtools merge meth/*_Blood-B-Mem -o merge/bmem
+awk '$6>0 {print $1,$2,"+","CpG",$5,$6}' meth/neo > merge/neo
 
-dnmtools merge merge/cd3 merge/cd4 merge/cd8 merge/nk -o merge/t
-dnmtools merge merge/b merge/t -o merge/lym
-dnmtools merge merge/mono merge/gran -o merge/mye
 
-dnmtools hmr-rep merge/lym -o hmr/lym
-dnmtools hmr-rep merge/mye -o hmr/mye
+for f in meth/*WBC; do echo $f; LC_ALL=C sort -k 1,1 -k 2,2n $f -o $f; done
+for f in meth/*WBC; do echo $f; awk '!seen[$1,$2]++' $f > $f.unq; done
+dnmtools merge meth/*WBC.unq -o merge/wbc
 
-dnmtools hmr-rep merge/gram -o hmr/gram
-dnmtools hmr-rep merge/t -o hmr/t
-dnmtools hmr-rep merge/b -o hmr/b
-dnmtools hmr-rep merge/nk -o hmr/nk
+declare -a l=(cd3 cd4 cd8 nk mono gran b wbc neo)
 
-bedtools subtract -a lym -b mye -A > lym-mye
-bedtools subtract -b lym -a mye -A > mye-lym
-awk '{print $1,$2,$3,$3-$2, $4,$5}' hmr/lym-mye | sort -k 4 -rn |  head | sort -k 1,1 -k 2,2n > top/lym
-awk '{print $1,$2,$3,$3-$2, $4,$5}' hmr/mye-lym | sort -k 4 -rn |  head | sort -k 1,1 -k 2,2n > top/mye
+for f in ${l[@]}; do time dnmtools hmr-rep merge/$f -o hmr/$f; done
+for f in ${l[@]}; do time LC_ALL=C sort -k 1,1 -k 2,2n merge/$f -o merge/$f; done
+for f in ${l[@]}; do LC_ALL=C sort -k 1,1 -k 2,2n hmr/$f -o hmr/$f; done
+for f in ${l[@]}; do time dnmtools roi hmr/$f merge/$f > hmr/$f.m; done
+for f in ${l[@]}; do dnmtools roi hmr/$f merge/wbc > hmr/$f.b; done
+for f in ${l[@]}; do dnmtools roi hmr/$f merge/neo > hmr/$f.n; done
+for f in ${l[@]}; do time paste hmr/$f hmr/$f.n hmr/$f.b hmr/$f.m | awk '{printf "%s,%.0f,%.0f,%.0f,%.2f,%.2f,%.2f\n", $1,$2,$3,$5,$11,$17,$23}' > hmr/$f.a; done
 
-LC_ALL=C sort -k 1,1 -k 2,2n merge/lym -o merge/lym.sort
-LC_ALL=C sort -k 1,1 -k 2,2n merge/mye -o merge/mye.sort
-
-dnmtools roi top/lym merge/lym.sort | awk {'print $1,$2,$3,$5'} > top/lym.lym
-dnmtools roi top/lym merge/mye.sort | awk {'print $1,$2,$3,$5'} > top/lym.mye
-dnmtools roi top/mye merge/mye.sort | awk {'print $1,$2,$3,$5'} > top/mye.mye
-dnmtools roi top/mye merge/lym.sort | awk {'print $1,$2,$3,$5'} > top/mye.lym
-
-awk '{if (substr($0,4,1) != "X" && substr($0,4,1) != "Y" && substr($0,4,1) != "M") print }' h
+time bedops -m cd3 cd4 cd8 nk mono gran b > merge
+for f in ${l[@]}; do dnmtools roi hmr/merge merge/$f > hmr/$f.s; done
+time paste hmr/*.s | awk '{printf "%s,%.0f,%.0f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", $1,$2,$3,$5,$11,$17,$23,$29,$35,$41,$47,$53,$60}' > hmr/sim
 

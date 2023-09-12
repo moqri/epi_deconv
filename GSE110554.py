@@ -7,4 +7,4 @@ dna='https://ftp.ncbi.nlm.nih.gov/geo/series/GSE110nnn/GSE110554/matrix/GSE11055
 dna=pd.read_table(dna,skiprows=97,index_col=0)
 dna=dna.round(3).copy()
 dg=df.merge(dna,left_index=True,right_index=True)
-dg.to_csv('data/dna.csv',index=False,sep='\t')
+dg.sort_values(['CpG_chrm','CpG_beg']).to_csv('dna.csv',index=False,sep='\t')

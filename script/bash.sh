@@ -48,3 +48,7 @@ dnmtools merge meth/*WBC.unq -o merge/wbc
 for f in ${l[@]}; do dnmtools roi hmr/merge merge/$f > hmr/$f.s; done
 time paste hmr/*.s | awk '{printf "%s,%.0f,%.0f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", $1,$2,$3,$5,$11,$17,$23,$29,$35,$41,$47,$53,$60}' > hmr/sim
 
+### yo
+dnmtools merge GSM6810048.meth GSM6810033.meth GSM6810026.meth GSM6810037.meth -o y.meth
+dnmtools merge GSM6810032.meth GSM6810041.meth GSM6810028.meth GSM6810042.meth GSM6810034.meth -o o.meth
+dnmtools merge y.meth o.meth -t -f -o yo.meth

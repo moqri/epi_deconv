@@ -52,3 +52,6 @@ time paste hmr/*.s | awk '{printf "%s,%.0f,%.0f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.
 dnmtools merge GSM6810048.meth GSM6810033.meth GSM6810026.meth GSM6810037.meth -o y.meth
 dnmtools merge GSM6810032.meth GSM6810041.meth GSM6810028.meth GSM6810042.meth GSM6810034.meth -o o.meth
 dnmtools merge y.meth o.meth -t -f -o yo.meth
+dnmtools radmeth -factor case design-matrix.txt proportion-table.txt > rad.meth
+dnmtools radadjust -bins 1:200:1 rad.meth > output-adjusted.bed
+dnmtools radmerge -p 0.01 output-adjusted.bed > dmrs.bed

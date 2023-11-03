@@ -55,3 +55,4 @@ dnmtools merge y.meth o.meth -t -f -o yo.meth
 dnmtools radmeth -factor case design-matrix.txt proportion-table.txt > rad.meth
 dnmtools radadjust -bins 1:200:1 rad.meth > output-adjusted.bed
 dnmtools radmerge -p 0.01 output-adjusted.bed > dmrs.bed
+awk -v OFS='\t' '$5>=5 && $6>0 {print $1,$2,$3}' dmrs.bed > dmr5.bed
